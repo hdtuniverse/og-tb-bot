@@ -1088,7 +1088,7 @@ bot.on('message', async (msg) => {
   const caption = msg.text; // Let allows reassignment
 
   // Ignore commands
-  if (caption === string && caption.startsWith('/')) return;
+if (typeof caption === 'string' && caption.startsWith('/')) return;
 
   const userIsMember = await checkChannelMembership(chatId, UpdateChannelId);
   const user = await User.findOne({ userId });
