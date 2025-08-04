@@ -110,8 +110,8 @@ const Fvideo = mongoose.model('Fvideo', fvideoSchema);
 // Replace with your own Telegram bot token
 const app = express();
 const token = '7513355237:AAEjvb6gSodWxEKjL4ftbav1zDE7MzHs3yU';
-const ownerId = 6713397633;
-const OWNER_ID = 6713397633;
+const ownerId = 1461656174;
+const OWNER_ID = 1461656174;
 const channelId = '-1002044705664';
 const UpdateChannelId = '@Ogprimeee';
 const UpdateChannelLink = 'https://t.me/Ogprimeee';
