@@ -1084,27 +1084,37 @@ function sendJoinChannelMessage(chatId) {
 
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
-  const userId = msg.from.id; // The user's unique Telegram ID
-  const caption = msg.text; // Let allows reassignment
+  const userId = msg.from.id;
+  const caption = msg.text;
 
   // Ignore commands
-if (typeof caption === 'string' && caption.startsWith('/')) return;
+  if (typeof caption === 'string' && caption.startsWith('/')) return;
 
-  const userIsMember = await checkChannelMembership(chatId, UpdateChannelId);
+  // Check if message is from group or private chat
+  const isGroup = msg.chat.type === 'group' || msg.chat.type === 'supergroup';
+
+  // Membership check (only for private chats; in groups you may skip this or handle differently)
+  let userIsMember = true;
+  if (!isGroup) {
+    userIsMember = await checkChannelMembership(chatId, UpdateChannelId);
+    if (!userIsMember) return sendJoinChannelMessage(chatId);
+  }
+
+  // Find user records
   const user = await User.findOne({ userId });
   const puser = await P_USERS.findOne({ puserId: userId });
-  
-  const isPuserMessage = puser !== null;
+
+  const isPuserMessage = !!puser;
   const canUseCommand = user?.canUseCommandUntil > new Date();
-  
-  if (!userIsMember) return sendJoinChannelMessage(chatId);
-if (caption && isPuserMessage || canUseCommand) {
-  handleCaption(msg, chatId, caption);
-} else {
+
+  // Main logic: handle caption if puser or canUseCommand is true
+  if (caption && (isPuserMessage || canUseCommand)) {
+    handleCaption(msg, chatId, caption);
+  } else {
     handleverification(chatId);
-    return;
-}
+  }
 });
+
 
 // Store the user's photo activity with timestamps and the time of last limit exceedance
 const userPhotoCount = {};
