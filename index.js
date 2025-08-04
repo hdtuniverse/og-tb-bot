@@ -706,7 +706,8 @@ bot.on('callback_query', (query) => {
 <blockquote><b>Wɪᴛʜᴏᴜᴛ ᴀᴅs\nNᴏ vᴇʀɪғɪᴄᴀᴛɪᴏɴ\nDɪʀᴇᴄᴛ Adult Videos\nAdult Webseries, Viral/Onlyfan Videos, Parody Movies, Full Videos, Desi Videos\nDirect Search by name\nCan use /getvideo and /all Command.</b></blockquote>\n
 <blockquote><b>ᴀʟʟ Pʀɪᴄᴇ Lɪsᴛ</b></blockquote>
 <blockquote><b>Rs10 - 1 Wᴇᴇᴋ\nRs30 - 1 Mᴏɴᴛʜ\nRs60 - 2 Mᴏɴᴛʜs\nRs90 - 3 Mᴏɴᴛʜs\nRs120 - 7 Mᴏɴᴛʜs</b></blockquote>\n
-<blockquote><b>UPI ID -</b> //</blockquote>
+<blockquote><b>UPI ID -</b> yadavk4426-1@oksbi</blockquote>
+<blockquote><b>Contact -</b> @OGHomeLanderr</blockquote>
 <blockquote><b>Sᴇɴᴅ SS Aғᴛᴇʀ Pᴀʏᴍᴇɴᴛ</b></blockquote>
 `;
 
@@ -721,7 +722,7 @@ bot.onText(/\/plan/, (msg) => {
     reply_markup: {
       inline_keyboard: [
         [
-          { text: 'Sᴇɴᴅ Yᴏᴜʀ Pᴀʏᴍᴇɴᴛ Rᴇᴄᴇɪᴘᴛ Hᴇʀᴇ', url: 'https://t.me/uu' }
+          { text: 'Sᴇɴᴅ Yᴏᴜʀ Pᴀʏᴍᴇɴᴛ Rᴇᴄᴇɪᴘᴛ Hᴇʀᴇ', url: 'https://t.me/oghomelanderr' }
         ],
         [
           { text: 'Delete', callback_data: 'delete_plan_message' }
@@ -1085,13 +1086,19 @@ bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
   const userId = msg.from.id; // The user's unique Telegram ID
   const caption = msg.text; // Let allows reassignment
+
+  // Ignore commands
+  if (caption === string && caption.startsWith('/')) return;
+
   const userIsMember = await checkChannelMembership(chatId, UpdateChannelId);
   const user = await User.findOne({ userId });
-
+  const puser = await P_USERS.findOne({ puserId: userId });
+  
+  const isPuserMessage = puser !== null;
   const canUseCommand = user?.canUseCommandUntil > new Date();
   
   if (!userIsMember) return sendJoinChannelMessage(chatId);
-if (caption && canUseCommand) {
+if (caption && isPuserMessage || canUseCommand) {
   handleCaption(msg, chatId, caption);
 } else {
     handleverification(chatId);
