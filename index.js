@@ -1091,7 +1091,7 @@ bot.on('message', async (msg) => {
   const canUseCommand = user?.canUseCommandUntil > new Date();
   
   if (!userIsMember) return sendJoinChannelMessage(chatId);
-if (caption) {
+if (caption && canUseCommand) {
   handleCaption(msg, chatId, caption);
 } else {
     handleverification(chatId);
@@ -1278,7 +1278,7 @@ async function isImageAvailable(url) {
   const imageUrl = await isImageAvailable(mdiskimg) ? mdiskimg : fallbackImage;
     const fastStreamUrl = encodeURIComponent(fastStream);
  const hivajoysetup = `https://hivajoy-terabox.blogspot.com/?streamlink=${fastStreamUrl}`;
-  const webwatch = `https://ea8f1083-336f-4c0d-950d-0fa057f4693c-00-1x8nbi375e6i0.pike.replit.dev/watch?streamlink=${fastStreamUrl}`
+  const webwatch = `https://og-terabox-player.onrender.com/watch?streamlink=${fastStreamUrl}`
   await bot.sendPhoto(
     chatId,
     imageUrl,
