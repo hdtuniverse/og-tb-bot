@@ -4,8 +4,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
-
-// Function to handle incoming messages (other than /start)
+const { https } = require('follow-redirects');
 const axios = require('axios').create({
   httpsAgent: new require('https').Agent({  
     rejectUnauthorized: false 
@@ -1087,10 +1086,16 @@ bot.on('message', async (msg) => {
   const userId = msg.from.id; // The user's unique Telegram ID
   const caption = msg.text; // Let allows reassignment
   const userIsMember = await checkChannelMembership(chatId, UpdateChannelId);
+  const user = await User.findOne({ userId });
 
+  const canUseCommand = user?.canUseCommandUntil > new Date();
+  
   if (!userIsMember) return sendJoinChannelMessage(chatId);
-if(caption){
+if (caption) {
   handleCaption(msg, chatId, caption);
+} else {
+    handleverification(chatId);
+    return;
 }
 });
 
@@ -1151,35 +1156,6 @@ bot.on('photo', async (msg) => {
   }
 });
 
-
-
-
-
-const { https } = require('follow-redirects');
-
-app.get('/proxy', (req, res) => {
-  // req.originalUrl example:
-  // /tb?url=https://d.1024terabox.com/file/f2de77ca49d663ac5c3f7283119114dd?fid=4399181640822-250528-274631008922125&dstime=1750235214&...
-
-  const rawUrl = req.originalUrl;
-  const urlIndex = rawUrl.indexOf('?url=');
-  if (urlIndex === -1) return res.send('No video URL provided.');
-
-  // Extract everything after '?url=' till the end of the string, raw and unparsed
-  const videoUrl = rawUrl.slice(urlIndex + 5);  // 5 is length of '?url='
-  if (!videoUrl) return res.status(400).send('No URL specified');
-
-  https.get(videoUrl, (proxyRes) => {
-    if (proxyRes.statusCode !== 200) {
-      return res.status(proxyRes.statusCode).send(`Error fetching video: ${proxyRes.statusCode}`);
-    }
-
-    res.setHeader('Content-Type', proxyRes.headers['content-type'] || 'video/mp4');
-    proxyRes.pipe(res);
-  }).on('error', (e) => {
-    res.status(500).send('Proxy error: ' + e.message);
-  });
-});
 
 
 
@@ -1302,11 +1278,12 @@ async function isImageAvailable(url) {
   const imageUrl = await isImageAvailable(mdiskimg) ? mdiskimg : fallbackImage;
     const fastStreamUrl = encodeURIComponent(fastStream);
  const hivajoysetup = `https://hivajoy-terabox.blogspot.com/?streamlink=${fastStreamUrl}`;
+  const webwatch = `https://ea8f1083-336f-4c0d-950d-0fa057f4693c-00-1x8nbi375e6i0.pike.replit.dev/watch?streamlink=${fastStreamUrl}`
   await bot.sendPhoto(
     chatId,
     imageUrl,
     {
-      caption: `<a href="https://ea8f1083-336f-4c0d-950d-0fa057f4693c-00-1x8nbi375e6i0.pike.replit.dev/watch?streamlink=${fastStreamUrl}">WATCH NOW</a> \n\nYour Watch Link is Ready.`,
+      caption: `<b>Watch On Web</b>: <a href="${webwatch}">WATCH NOW</a> \n\nYour Watch Link is Ready.`,
       parse_mode: 'HTML',
       reply_to_message_id: msg.message_id,
       reply_markup: {
@@ -1315,6 +1292,12 @@ async function isImageAvailable(url) {
             {
               text: '⚡ 1.Watch Now',
               web_app: { url: hivajoysetup},
+            },
+          ],
+          [
+            {
+              text: '⚡ 2.Web Watch',
+              url: webwatch,
             },
           ]
         ],
@@ -1352,43 +1335,39 @@ async function isImageAvailable(url) {
 
 
 
-// Helper function to generate a token
-const generateToken = () => crypto.randomBytes(4).toString('hex');
-  // Ensure axios is properly imported at the top of the file
-
 const fetch = require('node-fetch');
 
-const agent = new https.Agent({
-  rejectUnauthorized: false  // Disable SSL validation
-});
+// Generate a random token (if needed)
+const generateToken = () => crypto.randomBytes(4).toString('hex');
 
-// Function to follow redirects and get the final shortened URL
+// Main function to shorten URL with inshorturl.com
 const shortenUrlWithhjlink = async (longUrl) => {
-  const apiUrl = `https://hjlink.rf.gd/hjcloudapi.php?long_url=${encodeURIComponent(longUrl)}&api_key=8f3d02ac8fb4d7f9b3e2c5f8a7b635e4`;
+  const apiKey = '3d3360d80cfff24abc0ece738ee696056d6dfadb';
+  const apiUrl = `https://inshorturl.com/api?url=${encodeURIComponent(longUrl)}&api=${apiKey}`;
 
   try {
-    const response = await fetch(apiUrl, {agent},{
-      redirect: 'follow'  // Automatically follow redirects
+    const response = await fetch(apiUrl, {
+      method: 'GET',
+      redirect: 'follow'
     });
 
+    if (!response.ok) {
+      throw new Error(`HTTP error! Status: ${response.status}`);
+    }
 
+    const result = await response.json();
 
-    // If the response was redirected, the final URL will be the shortened URL
-    const hjurl = `http://hjlink.rf.gd/hjcloudapi.php?long_url=${encodeURIComponent(longUrl)}&api_key=8f3d02ac8fb4d7f9b3e2c5f8a7b635e4`;  // The final URL after the redirect
-
-    if (hjurl) {
-    const response = await axios.get(`https://bt.rf.gd/api.php?url=${encodeURIComponent(hjurl)}`);
-    return hjurl;  // returns the shortened URL
-}  // Move the closing bracket here
- else {
-      throw new Error('No shortened URL found in the response.');
+    if (result.shortenedUrl || result.shorturl) {
+      // Adjust based on actual API response format
+      return result.shortenedUrl || result.shorturl;
+    } else {
+      throw new Error('Shortened URL not found in API response.');
     }
   } catch (error) {
-    console.error('Error shortening URL with hjlink:', error);
+    console.error('Error shortening URL with inshorturl.com:', error);
     return null;
   }
 };
-
 
 
 
@@ -1733,7 +1712,7 @@ async function handleverification(chatId) {
   // Generate a new token and short URL for verification
     const token = generateToken();
     user.token = token;
-    user.tokenExpires = new Date(Date.now() + 5 * 60 * 1000); // Token expires in 5 minutes
+  user.tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // Token expires in 1 day
     await user.save();
 
     const longUrl = `https://t.me/${botUsername}?start=token_${token}`;
@@ -1742,23 +1721,22 @@ async function handleverification(chatId) {
     if (shortUrl) {
       bot.sendMessage(chatId, `Yᴏᴜʀ Aᴄᴄᴇss Tᴏkᴇɴ hᴀs ᴇxpɪʀᴇᴅ. Pʟᴇᴀsᴇ rᴇnᴇw ɪᴛ ᴀnd tʀʏ ᴀɢᴀɪɴ.
 
-<b>Tᴏkᴇɴ Vᴀlɪdɪᴛʏ</b>: 5 mɪnᴜtᴇ
+<b>Tᴏkᴇɴ Vᴀlɪdɪᴛʏ</b>: 1 Day
 
-Tʜɪs ɪs ᴀn ᴀds-bᴀsᴇd ᴀcᴄᴇss tᴏkᴇɴ. Iғ yᴏᴜ pᴀss 1 ᴀcᴄᴇss tᴏkᴇɴ, yᴏᴜ cᴀn ᴀcᴄᴇss mᴇssᴀɢᴇs fʀᴏᴍ sʜᴀrᴀʙʟᴇ lɪɴᴋs fᴏʀ ᴛʜᴇ nᴇxt 5 mɪnᴜtᴇ.`,
+Tʜɪs ɪs ᴀn ᴀds-bᴀsᴇd ᴀcᴄᴇss tᴏkᴇɴ. Iғ yᴏᴜ pᴀss 1 ᴀcᴄᴇss tᴏkᴇɴ, yᴏᴜ cᴀn ᴀcᴄᴇss mᴇssᴀɢᴇs fʀᴏᴍ sʜᴀrᴀʙʟᴇ lɪɴᴋs fᴏʀ ᴛʜᴇ nᴇxt 1 Day.`,
       {
         parse_mode: 'HTML',
         reply_markup: {
           inline_keyboard: [
-            [{ text: 'Vᴇʳɪfʏ', url: shortUrl }, { text: 'Hᴏw tᴏ Vᴇʳɪfʏ', url: `https://t.me/hivajoytrick/23` }],
-            [
-              { text: '🎥 Try Demo', callback_data: 'demo_button' }
-            ],
+            [{ text: 'Vᴇʳɪfʏ', url: shortUrl }, { text: 'Hᴏw tᴏ Vᴇʳɪfʏ', url: `https://t.me/hivajk/23` }],
             [
               { text: 'Bᴜʏ Pʀᴇᴍɪᴜᴍ | Rᴇmᴏᴠᴇ ᴀᴅs', callback_data: 'buyprime' }
             ]
           ]
         }
       });
+      // [{ text: '🎥 Try Demo', callback_data: 'demo_button' }],
+      
     } else {
       bot.sendMessage(chatId, 'Eʀʀᴏʀ ɢᴇɴᴇʀᴀᴛɪɴɢ sʜᴏʀᴛᴇɴᴇᴅ ᴜʀʟ. Pʟᴇᴀsᴇ tʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.');
     }
