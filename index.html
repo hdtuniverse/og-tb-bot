@@ -1,83 +1,292 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="hi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <title>Simple Web Page</title>
+    <title>OG Prime Movie Community - Premium Movies & Shows</title>
     <style>
-        /* Global Styles */
-        body {
-            font-family: Arial, sans-serif;
+        * {
             margin: 0;
             padding: 0;
-            background-color: #f4f4f9;
+            box-sizing: border-box;
         }
 
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #0f0f23;
+            min-height: 100vh;
+            color: #e0e0e0;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
         header {
-            background-color: #4CAF50;
-            color: white;
             text-align: center;
-            padding: 20px;
+            padding: 60px 0;
+            position: relative;
         }
 
-        h1 {
-            margin: 0;
-            font-size: 2.5em;
+        .logo {
+            font-size: 3.5rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #00d4ff;
         }
 
-        p {
-            font-size: 1.2em;
+        .tagline {
+            font-size: 1.3rem;
+            opacity: 0.9;
+            margin-bottom: 40px;
         }
 
         /* Main Content */
-        main {
-            padding: 20px;
+        .hero-section {
+            background: #1a1a2e;
+            border-radius: 15px;
+            padding: 40px;
+            margin: 30px 0;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            border: 1px solid #333;
         }
 
-        .content {
-            background-color: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin: 40px 0;
         }
 
-        h2 {
-            color: #333;
-        }
-
-        button {
-            background-color: #4CAF50;
-            color: white;
-            padding: 10px 20px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        button:hover {
-            background-color: #45a049;
-        }
-
-        /* Footer Styles */
-        footer {
-            background-color: #333;
-            color: white;
+        .feature-card {
+            background: #16213e;
+            padding: 25px;
+            border-radius: 12px;
             text-align: center;
-            padding: 10px;
-            position: fixed;
-            width: 100%;
-            bottom: 0;
+            transition: transform 0.2s ease;
+            border: 1px solid #333;
         }
+
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        .feature-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .feature-title {
+            font-size: 1.5rem;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+
+        .feature-description {
+            opacity: 0.9;
+            line-height: 1.6;
+        }
+
+        /* CTA Section */
+        .cta-section {
+            text-align: center;
+            padding: 60px 0;
+        }
+
+        .cta-title {
+            font-size: 2.5rem;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .cta-subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 40px;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .telegram-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 15px;
+            background: #0088cc;
+            color: white;
+            padding: 18px 35px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            text-decoration: none;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 15px rgba(0, 136, 204, 0.3);
+        }
+
+        .telegram-btn:hover {
+            transform: translateY(-2px);
+            background: #0077b3;
+            box-shadow: 0 6px 20px rgba(0, 136, 204, 0.4);
+        }
+
+        .telegram-icon {
+            font-size: 1.5rem;
+        }
+
+        /* Stats Section */
+        .stats-section {
+            background: #1a1a2e;
+            border-radius: 12px;
+            padding: 30px;
+            margin: 30px 0;
+            text-align: center;
+            border: 1px solid #333;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 30px;
+        }
+
+        .stat-item {
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.2rem;
+            font-weight: bold;
+            color: #00d4ff;
+            margin-bottom: 8px;
+        }
+
+        .stat-label {
+            opacity: 0.8;
+            font-size: 1.1rem;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .hero-section {
+                padding: 30px 20px;
+                margin: 20px 0;
+            }
+
+            .logo {
+                font-size: 2.5rem;
+            }
+
+            .cta-title {
+                font-size: 2rem;
+            }
+
+            .telegram-btn {
+                padding: 15px 30px;
+                font-size: 1.1rem;
+            }
+
+            .feature-card {
+                padding: 20px;
+            }
+        }
+
+        /* Floating elements removed for better performance */
     </style>
 </head>
 <body>
-    <main>
-        <section class="content">
-            <h2>About Me</h2>
-            <p>Hello! I'm learning how to build websites with HTML and CSS. This is a simple page as part of my practice.</p>
-            <button>Click Me</button>
-        </section>
-    </main>
+    <div class="container">
+        <header>
+            <h1 class="logo">🎬 OG PRIME</h1>
+            <p class="tagline">Premium Movies & Shows ki Duniya</p>
+        </header>
+
+        <main>
+            <section class="hero-section">
+                <div class="features-grid">
+                    <div class="feature-card">
+                        <span class="feature-icon">🎥</span>
+                        <h3 class="feature-title">Latest Movies</h3>
+                        <p class="feature-description">Bollywood, Hollywood, South ki sabse latest movies high quality mein dekho. New releases daily upload hoti rehti hain.</p>
+                    </div>
+                    <div class="feature-card">
+                        <span class="feature-icon">📺</span>
+                        <h3 class="feature-title">Web Series</h3>
+                        <p class="feature-description">Netflix, Amazon Prime, Disney+ ke popular web series aur shows free mein streaming karo.</p>
+                    </div>
+                    <div class="feature-card">
+                        <span class="feature-icon">📱</span>
+                        <h3 class="feature-title">TeraBox Player</h3>
+                        <p class="feature-description">Advanced TeraBox player se direct streaming. No ads, fast loading, HD quality guaranteed.</p>
+                    </div>
+                </div>
+            </section>
+
+            <section class="stats-section">
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <div class="stat-number">10K+</div>
+                        <div class="stat-label">Active Members</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">500+</div>
+                        <div class="stat-label">Movies Library</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-number">24/7</div>
+                        <div class="stat-label">Content Updates</div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="cta-section">
+                <h2 class="cta-title">Ready for Entertainment?</h2>
+                <p class="cta-subtitle">
+                    Humare exclusive Telegram community join karo aur unlimited movies, web series aur shows ka maza lo. 
+                    Premium content, fast downloads, aur best quality - sab kuch free!
+                </p>
+                <a href="https://telegram.me/ogprimeee" class="telegram-btn" target="_blank">
+                    <span class="telegram-icon">📱</span>
+                    Join Telegram Group
+                </a>
+            </section>
+        </main>
+    </div>
+
+    <script>
+        // Add some interactive effects
+        document.addEventListener('DOMContentLoaded', function() {
+            // Smooth scroll effect for mobile
+            const telegramBtn = document.querySelector('.telegram-btn');
+            
+            telegramBtn.addEventListener('click', function(e) {
+                // Add click effect
+                this.style.transform = 'scale(0.95)';
+                setTimeout(() => {
+                    this.style.transform = 'translateY(-5px) scale(1)';
+                }, 150);
+            });
+
+            // Add hover effect for feature cards on mobile
+            const featureCards = document.querySelectorAll('.feature-card');
+            featureCards.forEach(card => {
+                card.addEventListener('touchstart', function() {
+                    this.style.transform = 'translateY(-10px)';
+                });
+                
+                card.addEventListener('touchend', function() {
+                    setTimeout(() => {
+                        this.style.transform = 'translateY(0)';
+                    }, 200);
+                });
+            });
+        });
+    </script>
 </body>
 </html>
