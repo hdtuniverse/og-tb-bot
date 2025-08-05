@@ -34,13 +34,7 @@ const userSchema = new mongoose.Schema({
   token: { type: String, default: '' },
   tokenExpires: { type: Date },
   canUseCommandUntil: { type: Date },
-  isVerified: { type: Boolean, default: false },
-  progress: {
-    parody: { lastSentVideo: String },
-    viral: { lastSentVideo: String },
-    webs: { lastSentVideo: String },
-    fvideo: { lastSentVideo: String }
-  }
+  isVerified: { type: Boolean, default: false }
 });
 
 const User = mongoose.model('User', userSchema);
@@ -57,8 +51,8 @@ const fileSchema = new mongoose.Schema({
 const FileModel = mongoose.model('File', fileSchema);
 
 const puserSchema = new mongoose.Schema({
-  puserId: { type: String, unique: true },
-  firstName: { type: String },  // Adding first name field
+  puserId: { type: String, unique: true }, // ← Changed from String to Number
+  firstName: { type: String },
   username: { type: String },
 });
 
@@ -74,38 +68,6 @@ const ppuserSchema = new mongoose.Schema({
 
 const PP_USERS = mongoose.model('PPUser', ppuserSchema);
 
-const parodySchema = new mongoose.Schema({
-  uniqueId: { type: String, required: true, unique: true },
-  fileId: { type: String, required: true },
-  fileName: { type: String, required: true },
-  caption: { type: String, default: '' },
-});
-
-const viralSchema = new mongoose.Schema({
-  uniqueId: { type: String, required: true, unique: true },
-  fileId: { type: String, required: true },
-  fileName: { type: String, required: true },
-  caption: { type: String, default: '' },
-});
-
-const websSchema = new mongoose.Schema({
-  uniqueId: { type: String, required: true, unique: true },
-  fileId: { type: String, required: true },
-  fileName: { type: String, required: true },
-  caption: { type: String, default: '' },
-});
-
-const fvideoSchema = new mongoose.Schema({
-  uniqueId: { type: String, required: true, unique: true },
-  fileId: { type: String, required: true },
-  fileName: { type: String, required: true },
-  caption: { type: String, default: '' },
-});
-
-const Parody = mongoose.model('Parody', parodySchema);
-const Viral = mongoose.model('Viral', viralSchema);
-const Webs = mongoose.model('Webs', websSchema);
-const Fvideo = mongoose.model('Fvideo', fvideoSchema);
 
 // Replace with your own Telegram bot token
 const app = express();
@@ -649,7 +611,7 @@ bot.on('callback_query', (query) => {
       message_id: messageId,
       reply_markup: {
         inline_keyboard: [
-          
+
           [
             { text: '🍂 Uᴘᴅᴀᴛᴇs 🍂', url: `${UpdateChannelLink}` },
             { text: '🫨 Mᴏᴠɪᴇ Gʀᴏᴜᴘ', url: `${UpdateChannelLink}` }
@@ -1084,36 +1046,69 @@ function sendJoinChannelMessage(chatId) {
 
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
-  const userId = msg.from.id;
   const caption = msg.text;
+
+  // Ensure message has sender info
+  if (!msg.from || !msg.from.id) {
+    console.warn('Message does not contain sender info. Ignoring.');
+    return;
+  }
+
+  const userId = msg.from.id;
+  const isGroup = msg.chat.type === 'group' || msg.chat.type === 'supergroup';
+  const isPrivate = msg.chat.type === 'private';
 
   // Ignore commands
   if (typeof caption === 'string' && caption.startsWith('/')) return;
 
-  // Check if message is from group or private chat
-  const isGroup = msg.chat.type === 'group' || msg.chat.type === 'supergroup';
-
-  // Membership check (only for private chats; in groups you may skip this or handle differently)
-  let userIsMember = true;
-  if (!isGroup) {
-    userIsMember = await checkChannelMembership(chatId, UpdateChannelId);
-    if (!userIsMember) return sendJoinChannelMessage(chatId);
+  // In private chat, check channel membership
+  if (isPrivate) {
+    const isMember = await checkChannelMembership(chatId, UpdateChannelId);
+    if (!isMember) return sendJoinChannelMessage(chatId);
   }
 
-  // Find user records
-  const user = await User.findOne({ userId });
-  const puser = await P_USERS.findOne({ puserId: userId });
+  try {
+    const user = await User.findOne({ userId });
+    const puser = await P_USERS.findOne({ puserId: userId });
+    const isPuser = !!puser;
+    const canUseCommand = user?.canUseCommandUntil > new Date();
 
-  const isPuserMessage = !!puser;
-  const canUseCommand = user?.canUseCommandUntil > new Date();
+    console.log(`UserId: ${userId} (type: ${typeof userId})`);
+    console.log(`isPuser: ${isPuser}`);
+    console.log(`canUseCommand: ${canUseCommand}`);
 
-  // Main logic: handle caption if puser or canUseCommand is true
-  if (caption && (isPuserMessage || canUseCommand)) {
-    handleCaption(msg, chatId, caption);
-  } else {
-    handleverification(chatId);
+    if (!caption) return;
+
+    // ✅ PRIVATE CHAT
+    if (isPrivate) {
+      if (isPuser || canUseCommand) {
+        console.log('Private chat: calling handleCaption');
+        return handleCaption(msg, chatId, caption, isPuser);
+      } else {
+        console.log('Private chat: user needs verification');
+        return handleverification(chatId, userId);
+      }
+    }
+
+    // ✅ GROUP CHAT
+    if (isGroup) {
+      if (isPuser || canUseCommand) {
+        console.log('Group chat: calling handleCaption2');
+        return handleCaption2(msg, chatId, caption, isPuser);
+      } else {
+        console.log('Group chat: user not authorized. Ignoring.');
+        // Optional: send message or just ignore
+        return;
+      }
+    }
+
+  } catch (error) {
+    console.error('Error in message handler:', error);
   }
 });
+
+
+
 
 
 // Store the user's photo activity with timestamps and the time of last limit exceedance
@@ -1178,6 +1173,7 @@ bot.on('photo', async (msg) => {
 
 
 async function getFastStreamUrl(link) {
+  // https://teraplay.me/api/get-api.php
   const url = 'https://api.iteraplay.com/';
 
   const payload = { link };
@@ -1215,22 +1211,17 @@ async function getFastStreamUrl(link) {
 }
 
 
-
 // Function to handle captions
-async function handleCaption(msg, chatId, caption) {
-
-
+async function handleCaption(msg, chatId, caption, isPuser) {
   const userId = msg.from.id; // The user's unique Telegram ID
   let text = caption; // Let allows reassignment
 
   try {
-    let user = await User.findOne({ userId: String(chatId) });
-
+    let user = await User.findOne({ userId });
 
     // Forward the message to the channel
     const botInfo = await bot.getMe();
     const botUsername = botInfo.username;
-
 
     console.log(`Forwarded message from @${msg.from.username} to the channel via @${bot.username}`);
 
@@ -1238,7 +1229,8 @@ async function handleCaption(msg, chatId, caption) {
     if (text && text.match(/https?:\/\/\S+/)) {
       user = await User.findOne({ userId });
 
-      if (!user) {
+      // ✅ Updated: P_USERS don't need registration check
+      if (!user && !isPuser) {
         await bot.sendMessage(chatId, '❌ You are not registered. Please send /start to register.');
         return;
       }
@@ -1261,68 +1253,58 @@ async function handleCaption(msg, chatId, caption) {
       const match = text.match(urlRegex);
 
       if (match) {
-        user.watchLinksCount += 1;
-        await user.save();
+        // ✅ Updated: Only increment watchLinksCount for regular users, not P_USERS
+        if (user && !isPuser) {
+          user.watchLinksCount += 1;
+          await user.save();
+        }
 
         const fullUrl = match[0]; // The matched URL
         const urlid = fullUrl.split('/s/')[1]; // Extract the ID after '/s/'
         const slicedId = urlid.slice(1); // Remove the first character of the ID
         const { saveHash } = require('./hashstore');
-saveHash(slicedId);
+        saveHash(slicedId);
 
         const generatingMessage = await bot.sendMessage(chatId, '🔄 Generating, Please Wait...', { reply_to_message_id: msg.message_id });
         const stlink = `https://terabox.com/s/${urlid}`;
         const fastStream = await getFastStreamUrl(stlink);
+
         try {
-const mdiskimg = `https://core.mdiskplay.com/images-tb/${slicedId}.jpg`;
-const fallbackImage = 'https://images.techhive.com/images/article/2017/04/thinkstock-videoplayer-100717884-large.jpg';
+          const mdiskimg = `https://core.mdiskplay.com/images-tb/${slicedId}.jpg`;
+          const fallbackImage = 'https://images.techhive.com/images/article/2017/04/thinkstock-videoplayer-100717884-large.jpg';
 
+          const imageUrl = fallbackImage;
+          const fastStreamUrl = encodeURIComponent(fastStream);
+          const hivajoysetup = `https://hivajoy-terabox.blogspot.com/?streamlink=${fastStreamUrl}`;
+          const webwatch = `https://og-terabox-player.onrender.com/watch?streamlink=${fastStreamUrl}`;
 
-
-
-// Function to check if image exists
-async function isImageAvailable(url) {
-  try {
-    const response = await axios.head(url);
-    return response.headers['content-type'].startsWith('image/');
-  } catch (err) {
-    return false;
-  }
-}
-
-// Send image with fallback
-(async () => {
-  const imageUrl = await isImageAvailable(mdiskimg) ? mdiskimg : fallbackImage;
-    const fastStreamUrl = encodeURIComponent(fastStream);
- const hivajoysetup = `https://hivajoy-terabox.blogspot.com/?streamlink=${fastStreamUrl}`;
-  const webwatch = `https://og-terabox-player.onrender.com/watch?streamlink=${fastStreamUrl}`
-  await bot.sendPhoto(
-    chatId,
-    imageUrl,
-    {
-      caption: `<b>Watch On Web</b>: <a href="${webwatch}">WATCH NOW</a> \n\nYour Watch Link is Ready.`,
-      parse_mode: 'HTML',
-      reply_to_message_id: msg.message_id,
-      reply_markup: {
-        inline_keyboard: [
-          [
+          await bot.sendPhoto(
+            chatId,
+            imageUrl,
             {
-              text: '⚡ 1.Watch Now',
-              web_app: { url: hivajoysetup},
-            },
-          ],
-          [
-            {
-              text: '⚡ 2.Web Watch',
-              url: webwatch,
-            },
-          ]
-        ],
-      },
-    }
-  );
-})();
-           await bot.deleteMessage(chatId, generatingMessage.message_id);
+              caption: `<b>Watch On Web</b>: <a href="${webwatch}">WATCH NOW</a> \n\nYour Watch Link is Ready.`,
+              parse_mode: 'HTML',
+              reply_to_message_id: msg.message_id,
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    {
+                      text: '⚡ 1.Watch Now',
+                      web_app: { url: hivajoysetup },
+                    },
+                  ],
+                  [
+                    {
+                      text: '⚡ 2.Web Watch',
+                      url: webwatch,
+                    },
+                  ]
+                ],
+              },
+            }
+          );
+
+          await bot.deleteMessage(chatId, generatingMessage.message_id);
         } catch (error) {
           console.error('Error accessing the API:', error);
           await bot.deleteMessage(chatId, generatingMessage.message_id);
@@ -1336,7 +1318,6 @@ async function isImageAvailable(url) {
               reply_to_message_id: msg.message_id,
             }
           );
-
         }
       } else {
         await bot.sendMessage(chatId, '⚠️ Please send a valid Terabox URL that contains.\n\n📜 Example: `https://teraboxapp.com/s/1Hia89nsiwunsn`');
@@ -1347,9 +1328,120 @@ async function isImageAvailable(url) {
   } catch (error) {
     console.error('Error processing incoming message:', error);
   }
-
 }
 
+// Function to handle captions
+async function handleCaption2(msg, chatId, caption, isPuser) {
+  const userId = msg.from.id; // The user's unique Telegram ID
+  let text = caption; // Let allows reassignment
+
+  try {
+    let user = await User.findOne({ userId });
+
+    // Forward the message to the channel
+    const botInfo = await bot.getMe();
+    const botUsername = botInfo.username;
+
+    console.log(`Forwarded message from @${msg.from.username} to the channel via @${bot.username}`);
+
+    // Check if the message contains a valid URL
+    if (text && text.match(/https?:\/\/\S+/)) {
+      user = await User.findOne({ userId });
+
+      // ✅ Updated: P_USERS don't need registration check
+      if (!user && !isPuser) {
+        await bot.sendMessage(chatId, '❌ You are not registered. Please send /start to register.');
+        return;
+      }
+
+      // Check for TeraBox specific URL
+      const teraboxRegex = /https?:\/\/([a-zA-Z0-9_-]+\.)?[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\/wap\/share\/filelist\?surl=([a-zA-Z0-9_-]+)/;
+      const teraboxMatch = text.match(teraboxRegex);
+
+      if (teraboxMatch) {
+        // Extract the ID from the `surl` parameter (captured group 2)
+        const surlId = teraboxMatch[2];
+        // Convert the TeraBox URL to the required format
+        const fullUrl = `https://teraboxapp.com/s/1${surlId}`;
+        // Replace the original URL with the new one
+        text = fullUrl;
+      }
+
+      // Define regex to match any URL containing "/s/" (after the domain)
+      const urlRegex = /https?:\/\/([a-zA-Z0-9.-]+\/s\/[a-zA-Z0-9_-]+)/;
+      const match = text.match(urlRegex);
+
+      if (match) {
+        // ✅ Updated: Only increment watchLinksCount for regular users, not P_USERS
+        if (user && !isPuser) {
+          user.watchLinksCount += 1;
+          await user.save();
+        }
+
+        const fullUrl = match[0]; // The matched URL
+        const urlid = fullUrl.split('/s/')[1]; // Extract the ID after '/s/'
+        const slicedId = urlid.slice(1); // Remove the first character of the ID
+        const { saveHash } = require('./hashstore');
+        saveHash(slicedId);
+
+        const generatingMessage = await bot.sendMessage(chatId, '🔄 Generating, Please Wait...', { reply_to_message_id: msg.message_id });
+        const stlink = `https://terabox.com/s/${urlid}`;
+        const fastStream = await getFastStreamUrl(stlink);
+
+        try {
+          const mdiskimg = `https://core.mdiskplay.com/images-tb/${slicedId}.jpg`;
+          const fallbackImage = 'https://images.techhive.com/images/article/2017/04/thinkstock-videoplayer-100717884-large.jpg';
+
+          const imageUrl = fallbackImage;
+          const fastStreamUrl = encodeURIComponent(fastStream);
+          const hivajoysetup = `https://hivajoy-terabox.blogspot.com/?streamlink=${fastStreamUrl}`;
+          const webwatch = `https://og-terabox-player.onrender.com/watch?streamlink=${fastStreamUrl}`;
+
+          await bot.sendPhoto(
+            chatId,
+            imageUrl,
+            {
+              caption: `<b>Watch On Web</b>: <a href="${webwatch}">WATCH NOW</a> \n\nYour Watch Link is Ready.`,
+              parse_mode: 'HTML',
+              reply_to_message_id: msg.message_id,
+              reply_markup: {
+                inline_keyboard: [
+                  [
+                    {
+                      text: '⚡ 2.Web Watch',
+                      url: webwatch,
+                    },
+                  ]
+                ],
+              },
+            }
+          );
+
+          await bot.deleteMessage(chatId, generatingMessage.message_id);
+        } catch (error) {
+          console.error('Error accessing the API:', error);
+          await bot.deleteMessage(chatId, generatingMessage.message_id);
+
+          // Send the generated links as a reply
+          await bot.sendMessage(
+            chatId,
+            `ERROR: ${error}`,
+            {
+              parse_mode: 'HTML',
+              reply_to_message_id: msg.message_id,
+            }
+          );
+        }
+      } else {
+        await bot.sendMessage(chatId, '⚠️ Please send a valid Terabox URL that contains.\n\n📜 Example: `https://teraboxapp.com/s/1Hia89nsiwunsn`');
+      }
+    } else if (text.startsWith('/')) {
+      return;
+    }
+  } catch (error) {
+    console.error('Error processing incoming message:', error);
+  }
+}
 
 
 const fetch = require('node-fetch');
@@ -1536,738 +1628,42 @@ bot.onText(/\/broadcast/, async (msg) => {
 
 
 
-
-// Handle document files
-bot.on('document', async (msg) => {
-  const userId = msg.from.id;
-
-  if (userId === OWNER_ID) {
-    const document = msg.document;
-    const fileId = document.file_id;
-    const fileName = document.file_name;
-
-    // Generate a unique ID for the file
-    const uniqueId = crypto.randomBytes(8).toString('hex');
-
-    // Save file details to the database
-    const newFile = new FileModel({
-      uniqueId: uniqueId,
-      fileId: fileId,
-      type: 'document',  // Document type
-      fileName: fileName,
-      caption: `Document: ${fileName}`
-    });
-
-    await newFile.save();
-
-    // Create the sharable link
-    const sharableLink = `https://t.me/${botUsername}?start=file_${uniqueId}`;
-
-    // Send a confirmation message with the sharable link
-    bot.sendMessage(userId, `Document uploaded successfully!\nYou can share the link: ${sharableLink}`);
-  } else {
-    // If the user is not the owner, send a warning message
-    bot.sendMessage(userId, 'Only the owner can upload files!');
-  }
-});
-
-// Handle video files
-let currentCategory = null; // To store the active category
-
-// Handle category selection by the owner
-bot.onText(/\/on([a-zA-Z0-9]+)/, (msg, match) => {
-  const userId = msg.from.id;
-
-  if (userId === OWNER_ID) {
-    const category = match[1];  // Extract category from the command
-    currentCategory = category; // Set the current category
-    bot.sendMessage(userId, `Category "${category}" selected. You can now upload files for this category.`);
-  } else {
-    bot.sendMessage(userId, 'Only the owner can manage categories!');
-  }
-});
-
-// Handle finishing the upload process for a category
-bot.onText(/\/finish([a-zA-Z0-9]+)/, async (msg, match) => {
-  const userId = msg.from.id;
-
-  if (userId === OWNER_ID) {
-    const category = match[1];  // Extract category from the command
-    if (currentCategory === category) {
-      bot.sendMessage(userId, `Category "${category}" upload process finished.`);
-      currentCategory = null;  // Reset the current category
-    } else {
-      bot.sendMessage(userId, `No active category for "${category}". Please start a category first.`);
-    }
-  } else {
-    bot.sendMessage(userId, 'Only the owner can manage categories!');
-  }
-});
-
-bot.on('video', async (msg) => {
-  const userId = msg.from.id;
-  const caption = msg.caption;
-  const chatId = msg.chat.id;
-if(caption){
-  handleCaption(msg, chatId, caption);
-}
-  if (userId === OWNER_ID) {
-    if (!currentCategory) {
-      bot.sendMessage(userId, 'Please select a category first using /oncategory command.');
-      return;
-    }
-
-    const video = msg.video;
-    const fileId = video.file_id;
-    let fileName = video.file_name || "video.mp4";
-
-  // Regular expression to match and remove @username or URLs starting with https://
-const sanitizePattern = /(@\w+|https?:\/\/[^\s]+|\bgetnewlink\.com\b|\b\w+\.(com|in|net|org|edu|gov|co|io|xyz)\b)/gi;
-
-  // Sanitize the file name by removing the matched patterns
-  const sanitizeFileName = fileName.replace(sanitizePattern, '').trim();  // Default video name
-
-    // Generate a unique ID for the video
-    const uniqueId = crypto.randomBytes(8).toString('hex');
-
-    // Save the video into the appropriate category schema
-    let newFile;
-    switch (currentCategory) {
-      case 'parody':
-        newFile = new Parody({
-          uniqueId: uniqueId,
-          fileId: fileId,
-          fileName: sanitizeFileName,
-          caption: `Video: ${sanitizeFileName}`,
-        });
-        break;
-      case 'viral':
-        newFile = new Viral({
-          uniqueId: uniqueId,
-          fileId: fileId,
-          fileName: sanitizeFileName,
-          caption: `Video: ${sanitizeFileName}`,
-        });
-        break;
-      case 'webs':
-        newFile = new Webs({
-          uniqueId: uniqueId,
-          fileId: fileId,
-          fileName: sanitizeFileName,
-          caption: `Video: ${sanitizeFileName}`,
-        });
-        break;
-      case 'fvideo':
-        newFile = new Fvideo({
-          uniqueId: uniqueId,
-          fileId: fileId,
-          fileName: sanitizeFileName,
-          caption: `Video: ${sanitizeFileName}`,
-        });
-        break;
-      default:
-        bot.sendMessage(userId, 'Invalid category.');
-        return;
-    }
-
-    // Save the video
-    await newFile.save();
-
-    // Create a sharable link
-    const sharableLink = `https://t.me/${botUsername}?start=file_${uniqueId}`;
-
-    bot.sendMessage(userId, `Video uploaded successfully under "${currentCategory}" category! You can share the link: ${sharableLink}`);
-  } else {
-    // Only the owner can upload files
-  }
-});
-
-
-// You can add similar code for handling other categories like parody, webseries, etc.
-
-
-// Handle audio files
-bot.on('audio', async (msg) => {
-  const userId = msg.from.id;
-
-  if (userId === OWNER_ID) {
-    const audio = msg.audio;
-    const fileId = audio.file_id;
-    const fileName = audio.file_name || "audio.mp3";  // Default audio name
-
-    // Generate a unique ID for the audio
-    const uniqueId = crypto.randomBytes(8).toString('hex');
-
-    // Save audio details to the database
-    const newFile = new FileModel({
-      uniqueId: uniqueId,
-      fileId: fileId,
-      type: 'audio',  // Audio type
-      fileName: fileName,
-      caption: `Audio: ${fileName}`
-    });
-
-    await newFile.save();
-
-    // Create the sharable link
-    const sharableLink = `https://t.me/${botUsername}?start=file_${uniqueId}`;
-
-    // Send a confirmation message with the sharable link
-    bot.sendMessage(userId, `Audio uploaded successfully!\nYou can share the link: ${sharableLink}`);
-  } else {
-    // If the user is not the owner, send a warning message
-    bot.sendMessage(userId, 'Only the owner can upload files!');
-  }
-});
-
-
-
-
-async function handleverification(chatId) {
+async function handleverification(chatId, userId) {
   const waitmsg = await bot.sendMessage(chatId, 'Generating');
-  let user = await User.findOne({ userId: String(chatId) });
+  const user = await User.findOne({ userId });
   // Generate a new token and short URL for verification
-    const token = generateToken();
-    user.token = token;
+  const token = generateToken();
+  user.token = token;
   user.tokenExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // Token expires in 1 day
-    await user.save();
+  await user.save();
 
-    const longUrl = `https://t.me/${botUsername}?start=token_${token}`;
-    const shortUrl = await shortenUrlWithhjlink(longUrl);
+  const longUrl = `https://t.me/${botUsername}?start=token_${token}`;
+  const shortUrl = await shortenUrlWithhjlink(longUrl);
 
-    if (shortUrl) {
-      bot.sendMessage(chatId, `Yᴏᴜʀ Aᴄᴄᴇss Tᴏkᴇɴ hᴀs ᴇxpɪʀᴇᴅ. Pʟᴇᴀsᴇ rᴇnᴇw ɪᴛ ᴀnd tʀʏ ᴀɢᴀɪɴ.
+  if (shortUrl) {
+    bot.sendMessage(chatId, `Yᴏᴜʀ Aᴄᴄᴇss Tᴏkᴇɴ hᴀs ᴇxpɪʀᴇᴅ. Pʟᴇᴀsᴇ rᴇnᴇw ɪᴛ ᴀɴᴅ tʀʏ ᴀɢᴀɪɴ.
 
-<b>Tᴏkᴇɴ Vᴀlɪdɪᴛʏ</b>: 1 Day
+<b>Tᴏkᴇɴ Vᴀlɪᴅɪᴛʏ</b>: 1 Day
 
-Tʜɪs ɪs ᴀn ᴀds-bᴀsᴇd ᴀcᴄᴇss tᴏkᴇɴ. Iғ yᴏᴜ pᴀss 1 ᴀcᴄᴇss tᴏkᴇɴ, yᴏᴜ cᴀn ᴀcᴄᴇss mᴇssᴀɢᴇs fʀᴏᴍ sʜᴀrᴀʙʟᴇ lɪɴᴋs fᴏʀ ᴛʜᴇ nᴇxt 1 Day.`,
-      {
-        parse_mode: 'HTML',
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: 'Vᴇʳɪfʏ', url: shortUrl }, { text: 'Hᴏw tᴏ Vᴇʳɪfʏ', url: `https://t.me/hivajk/23` }],
-            [
-              { text: 'Bᴜʏ Pʀᴇᴍɪᴜᴍ | Rᴇmᴏᴠᴇ ᴀᴅs', callback_data: 'buyprime' }
-            ]
-          ]
-        }
-      });
-      // [{ text: '🎥 Try Demo', callback_data: 'demo_button' }],
-      
-    } else {
-      bot.sendMessage(chatId, 'Eʀʀᴏʀ ɢᴇɴᴇʀᴀᴛɪɴɢ sʜᴏʀᴛᴇɴᴇᴅ ᴜʀʟ. Pʟᴇᴀsᴇ tʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.');
-    }
-
-    bot.deleteMessage(chatId, waitmsg.message_id); // Deleting after 1 minute
-}
-
-// ✅ PRELOADED VIDEO STORAGE
-let cachedVideos = {
-  parody: [],
-  viral: [],
-  webs: [],
-  fvideo: []
-};
-
-// ✅ FUNCTION TO PRELOAD VIDEOS
-async function preloadVideos() {
-  cachedVideos.parody = await Parody.find({}).sort({ _id: 1 }).lean();
-  cachedVideos.viral = await Viral.find({}).sort({ _id: 1 }).lean();
-  cachedVideos.webs = await Webs.find({}).sort({ _id: 1 }).lean();
-  cachedVideos.fvideo = await Fvideo.find({}).sort({ _id: 1 }).lean();
-
-  console.log(`✅ Preloaded videos - Parody: ${cachedVideos.parody.length}, Viral: ${cachedVideos.viral.length}, Webs: ${cachedVideos.webs.length}, Full: ${cachedVideos.fvideo.length}`);
-}
-
-// ⏳ Run preload when server starts
-preloadVideos();
-
-
-// ✅ Optional: Manual reload command (owner only)
-bot.onText(/\/reloadvideos/, async (msg) => {
-  if (msg.from.id.toString() === OWNER_ID) {
-    await preloadVideos();
-    bot.sendMessage(msg.chat.id, '🔄 Video cache reloaded!');
-  }
-});
-
-
-// ✅ GETVIDEO COMMAND
-bot.onText(/\/getvideo/, async (msg) => {
-  const chatId = msg.chat.id;
-  const isOwnerMessage = msg.from.id.toString() === OWNER_ID;
-  const userId = msg.from.id.toString();
-
-  let user = await User.findOne({ userId });
-  const puser = await P_USERS.findOne({ puserId: userId });
-  const ppuser = await PP_USERS.findOne({ puserId: userId, demoUsed: 0 });
-
-  const isPuserMessage = puser !== null;
-  const isPPuserMessage = ppuser !== null;
-
-  const canUseCommand = user?.canUseCommandUntil > new Date();
-
-  if (isOwnerMessage || isPuserMessage || isPPuserMessage || canUseCommand) {
-    const categories = [
-      { text: '🍑 Parody Movies 🎬', value: 'parody' },
-      { text: '🔥 Viral Videos 📱', value: 'viral' },
-      { text: '🌐 Web Series 💻', value: 'webs' },
-      { text: '🍿 Full Videos 🎥', value: 'fvideo' }
-    ];
-
-    const categoryButtons = categories.map(category => ({
-      text: category.text,
-      callback_data: `category_${category.value}`,
-    }));
-
-    bot.sendMessage(chatId, 'Please choose a category:', {
+Tʜɪs ɪs ᴀɴ ᴀds-bᴀsᴇd ᴀcᴄᴇss tᴏkᴇɴ. Iғ yᴏᴜ pᴀss 1 ᴀcᴄᴇss tᴏkᴇɴ, yᴏᴜ cᴀɴ ᴀcᴄᴇss mᴇssᴀɢᴇs fʀᴏᴍ sʜᴀʀᴀʙʟᴇ lɪɴᴋs fᴏʀ ᴛʜᴇ nᴇxt 1 Day.`,
+    {
+      parse_mode: 'HTML',
       reply_markup: {
-        inline_keyboard: chunkArray(categoryButtons, 1),
-      },
-    });
-  } else {
-    handleverification(chatId);
-    return;
-  }
-});
-
-
-// ✅ CALLBACK HANDLER FOR CATEGORY SELECTION
-bot.on('callback_query', async (callbackQuery) => {
-  const userId = callbackQuery.from.id;
-  const chatId = userId;
-  const category = callbackQuery.data.split('_')[1];
-
-  if (
-    ['view_rewards', 'contactmsg', 'back_to_share', 'share_bot', 'back', 'help', 'about', 'ownerinfo', 'buyprime', 'delete_plan_message', 'buy'].includes(callbackQuery.data)
-  ) return;
-
-  if (callbackQuery.data === 'category_parody' || callbackQuery.data === 'category_viral' || callbackQuery.data === 'category_webs' || callbackQuery.data === 'category_fvideo') {
-
-
-  let user = await User.findOne({ userId });
-
-  const puser = await P_USERS.findOne({ puserId: userId.toString() });
-  const ppuser = await PP_USERS.findOne({ puserId: userId.toString(), demoUsed: 0 });
-
-  const isPuserMessage = puser !== null;
-  const isPPuserMessage = ppuser !== null;
-  const canUseCommand = user?.canUseCommandUntil > new Date();
-
-  // ✅ Use Preloaded Data Instead of Fetching Every Time
-  const videoData = cachedVideos[category] || [];
-
-  if (!videoData.length) {
-    bot.sendMessage(userId, 'No videos available in this category.');
-    return;
-  }
-
-  if (isPuserMessage || isPPuserMessage || canUseCommand) {
-    const lastSentVideo = user.progress?.[category]?.lastSentVideo || null;
-
-    let videoToSend;
-    if (!lastSentVideo) {
-      videoToSend = videoData[0];
-    } else {
-      const nextIndex = videoData.findIndex(v => v.uniqueId === lastSentVideo);
-      videoToSend = videoData[nextIndex + 1] || videoData[0];
-    }
-
-    if (videoToSend) {
-      user.progress[category] = {
-        lastSentVideo: videoToSend.uniqueId
-      };
-      await user.save();
-
-      bot.sendVideo(userId, videoToSend.fileId, {
-        caption: videoToSend.fileName,
-        reply_markup: {
-          inline_keyboard: [[{ text: 'Next', callback_data: `category_${category}` }]]
-        }
-      });
-    } else {
-      bot.sendMessage(userId, 'No videos found.');
-    }
-  } else {
-    handleverification(chatId);
-    return;
-  }
-    }
-});
-
-
-
-
-
-
-// Helper function to chunk an array into smaller arrays (for inline keyboard)
-function chunkArray(arr, size) {
-  const result = [];
-  for (let i = 0; i < arr.length; i += size) {
-    result.push(arr.slice(i, i + size));
-  }
-  return result;
-}
-
-
-
-// Handle the callback from the "Try Demo" button
-bot.on('callback_query', async (query) => { 
-  const chatId = query.message.chat.id;
-  const userId = query.from.id;
-const ppuser = await PP_USERS.findOne({ puserId: userId.toString()});
-  if (query.data === 'demo_button') {
-
-
-        // If the user has already used the demo (demoUsed = 1), prompt them to buy the plan
-        if (ppuser && ppuser.demoUsed === 0) {
-                    // User has not used the demo yet (demoUsed = 0), show the demo access message
-          bot.sendMessage(chatId, 
-  '🎉 Demo Activated! You have 5 minute to experience it! ⏳\n\n🔑 Type /getvideo to proceed and unlock more!',
-  {
-    reply_markup: {
-      inline_keyboard: [
-        [
-          { text: '🚀 Start Demo', callback_data: 'start_demo' }
+        inline_keyboard: [
+          [{ text: 'Vᴇʀɪfʏ', url: shortUrl }, { text: 'Hᴏw tᴏ Vᴇʀɪfʏ', url: `https://t.me/hivajk/23` }],
+          [
+            { text: 'Bᴜʏ Pʀᴇᴍɪᴜᴍ | Rᴇmᴏᴠᴇ ᴀᴅs', callback_data: 'buyprime' }
+          ]
         ]
-      ]
-    }
-  }
-);
-
-
-          // Set expiration for demo (1 minute)
-          setTimeout(() => {
-            PP_USERS.updateOne(
-              { puserId: userId }, 
-              { $set: { demoUsed: 1 } }, // Set demoUsed to 1 (true)
-              (updateErr) => {
-                if (updateErr) {
-                  console.log('Error updating demo usage:', updateErr);
-                } else {
-                  console.log('Demo expired for user, updated demoUsed flag');
-                }
-              }
-            );
-
-          }, 5 * 60 * 1000); // 1 minute delay
-  // 1 minute in milliseconds
-
-        } 
-       else if (!ppuser) {
-        // If the user doesn't exist, add them to the database
-        const currentTime = new Date();
-        const newUser = new PP_USERS({
-          puserId: userId,
-          firstName: query.from.first_name,
-          username: query.from.username,
-          demoUsed: 0,  // 0 means demo hasn't been used
-          demoStartTime: currentTime // Store the demo start time
-        });
-
-        // Save the user to the database
-        newUser.save((saveErr) => {
-          if (saveErr) {
-            console.log('Error saving user to the database:', saveErr);
-            return;
-          }
-
-          // Send demo access message
-         bot.sendMessage(chatId, 
-  '🎉 Demo Activated! You have 5 minute to experience it! ⏳\n\n🔑 Type or Click /getvideo to proceed');
-
-
-          // Set expiration for demo (1 minute)
-          setTimeout(() => {
-            PP_USERS.updateOne(
-              { puserId: userId }, 
-              { $set: { demoUsed: 1 } }, // Set demoUsed to 1 (true)
-              (updateErr) => {
-                if (updateErr) {
-                  console.log('Error updating demo usage:', updateErr);
-                } else {
-                  console.log('Demo expired for new user, updated demoUsed flag');
-                }
-              }
-            );
-          }, 5 * 60 * 1000);  // 1 minute in milliseconds
-        });
-      } else {
-            bot.sendMessage(userId, 
-      '***⏳ Oops! Your Plan/demo has expired***\n\n✨ Upgrade to the ***Premium Users Plan***\n👉 Click below to unlock premium content instantly! 🔑',
-      { parse_mode: 'Markdown',
-        reply_markup: {
-          inline_keyboard: [
-            [
-        { text: '💳 View Pʀᴇᴍɪᴜᴍ Plan', callback_data: 'buyprime' }
-      ]
-          ]
-        }
-      }
-    );
-      }
-
-  }
-});
-
-
-
-
-
-
-const searchStates = {}; // Maintain pagination state per user
-
-bot.on('message', async (msg) => {
-  const chatId = msg.chat.id;
-  const userId = msg.from.id.toString();
-  const queryText = msg.text?.trim();
-
-  const puser = await P_USERS.findOne({ puserId: userId });
-  if (!puser || !queryText || queryText.startsWith('/') || queryText.startsWith('http') || /^\d/.test(queryText)) return;
-
-  const searchWords = queryText.toLowerCase().split(/\s+/);
-
-  const allVideos = Object.values(cachedVideos).flat();
-
-  const results = allVideos.filter(file =>
-    searchWords.every(word =>
-      file.fileName?.toLowerCase().includes(word)
-    )
-  );
-
-  if (results.length === 0) {
-    return bot.sendMessage(chatId, `❌ No results found for "${queryText}".`);
-  }
-
-  // Set user state
-  searchStates[userId] = {
-    results,
-    queryText,
-    currentPage: 1,
-    totalPages: Math.ceil(results.length / 10)
-  };
-
-  sendSearchResults(chatId, userId, msg.message_id);
-});
-bot.on('callback_query', async (callbackQuery) => {
-  const userId = callbackQuery.from.id.toString();
-  const chatId = callbackQuery.message.chat.id;
-  const state = searchStates[userId];
-
-  if (!state) return;
-
-  const { results, queryText, currentPage, totalPages } = state;
-
-  if (callbackQuery.data === 'next' && currentPage < totalPages) {
-    state.currentPage++;
-  } else if (callbackQuery.data === 'prev' && currentPage > 1) {
-    state.currentPage--;
-  } else {
-    return bot.answerCallbackQuery(callbackQuery.id);
-  } 
-
-  sendSearchResults(chatId, userId, callbackQuery.message.message_id);
-  bot.answerCallbackQuery(callbackQuery.id);
-});
- async function sendSearchResults(chatId, userId, messageId) {
-  const { results, currentPage, totalPages, queryText } = searchStates[userId];
-
-  const start = (currentPage - 1) * 10;
-  const pageResults = results.slice(start, start + 10);
-
-  const buttons = pageResults.map(file => [{
-    text: file.fileName,
-    url: `https://t.me/terabox_player_hj_bot?start=file_${file.uniqueId}`
-  }]);
-
-  const navButtons = [];
-
-  if (currentPage > 1) navButtons.push({ text: '⬅ Prev', callback_data: 'prev' });
-  navButtons.push({ text: `${currentPage}/${totalPages}`, callback_data: 'page_info' });
-  if (currentPage < totalPages) navButtons.push({ text: 'Next ➡', callback_data: 'next' });
-
-  if (navButtons.length) buttons.push(navButtons);
-
- try {
-  await bot.editMessageText(`Search results for: *${queryText}*\nPage ${currentPage} of ${totalPages}`, {
-    chat_id: chatId,
-    message_id: messageId,
-    parse_mode: 'Markdown',
-    reply_markup: {
-      inline_keyboard: buttons,
-    }
-  });
-} catch (err) {
-  console.log('❌ Edit failed:', err.message);
-
-  // Fallback: send new message
-  await bot.sendMessage(chatId, `Search results for: *${queryText}*\nPage ${currentPage} of ${totalPages}`, {
-    parse_mode: 'Markdown',
-    reply_markup: {
-      inline_keyboard: buttons
-    }
-  });
-}
-
-}
-
-
-
-
-
-bot.onText(/\/all/, async (msg) => {
-  const chatId = msg.chat.id;
-  const userId = msg.from.id.toString();
-
-  const puser = await P_USERS.findOne({ puserId: userId });
-  const isPuserMessage = puser !== null;
-
-  let user = await User.findOne({ userId });
-  if (!user) {
-    await bot.sendMessage(chatId, '❌ You are not registered. Please send /start to register.');
-    return;
-  }
-
-  if (!isPuserMessage) {
-    bot.sendMessage(chatId, 'Please send a Terabox URL For Watch Online.\n\nAnd For Direct Video Send /getvideo\n\nOnly Premium Users can use This Direct Searching features\n\n✨ Upgrade to the ***Premium Users Plan***', {
-      parse_mode: 'Markdown',
-      reply_markup: {
-        inline_keyboard: [[
-          { text: '💳 View Pʀᴇᴍɪᴜᴍ Plan', callback_data: 'buyprime' }
-        ]]
       }
     });
-    return;
+  } else {
+    bot.sendMessage(chatId, 'Eʀʀᴏʀ ɢᴇɴᴇʀᴀᴛɪɴɢ sʜᴏʀᴛᴇɴᴇᴅ ᴜʀʟ. Pʟᴇᴀsᴇ tʀʏ ᴀɢᴀɪɴ ʟᴀᴛᴇʀ.');
   }
 
-  const schemaButtons = [
-    [{ text: '🍑 Parody Movies 🎬', callback_data: 'schema_parody' }],
-    [{ text: '🔥 Viral Videos 📱', callback_data: 'schema_viral' }],
-    [{ text: '🌐 Web Series 💻', callback_data: 'schema_webs' }],
-    [{ text: '🍿 Full Videos 🎥', callback_data: 'schema_fvideo' }],
-  ];
-
-  bot.sendMessage(chatId, 'Please choose a category to see the files:', {
-    reply_markup: {
-      inline_keyboard: schemaButtons,
-    },
-  });
-});
-
-
-const paginationState = {}; // Maintain user state
-
-bot.on('callback_query', async (callbackQuery) => {
-  const chatId = callbackQuery.message.chat.id;
-  const userId = callbackQuery.from.id.toString();
-  const data = callbackQuery.data;
-
-  const puser = await P_USERS.findOne({ puserId: userId });
-  if (!puser) return;
-
-  if (data.startsWith('schema_')) {
-    const schema = data.split('_')[1];
-    const videos = cachedVideos[schema] || [];
-
-    if (!videos.length) {
-      bot.sendMessage(chatId, `No files found in ${schema} category.`);
-      return;
-    }
-
-    // Save pagination state
-    paginationState[userId] = {
-      schema,
-      currentPage: 1,
-      resultsPerPage: 10,
-      totalPages: Math.ceil(videos.length / 10)
-    };
-
-    sendCachedResults(bot, callbackQuery.message.message_id, chatId, userId);
-    bot.answerCallbackQuery(callbackQuery.id);
-  }
-
-  if (data.startsWith('page_')) {
-    const [_, action, schema] = data.split('_');
-
-    if (!paginationState[userId] || paginationState[userId].schema !== schema) return;
-
-    if (action === 'next' && paginationState[userId].currentPage < paginationState[userId].totalPages) {
-      paginationState[userId].currentPage++;
-    } else if (action === 'prev' && paginationState[userId].currentPage > 1) {
-      paginationState[userId].currentPage--;
-    }
-
-    sendCachedResults(bot, callbackQuery.message.message_id, chatId, userId);
-    bot.answerCallbackQuery(callbackQuery.id);
-  }
-
-  if (data.startsWith('page_goto_')) {
-  const schema = data.split('_')[2];
-
-  if (!paginationState[userId] || paginationState[userId].schema !== schema) return;
-
-  const pageInputMessage = await bot.sendMessage(chatId, '📥 Please enter the page number you want to jump to:');
-
-  // Listen to the next message from this user
-  bot.once('message', async (msg) => {
-    const requestedPage = parseInt(msg.text);
-    const totalPages = paginationState[userId].totalPages;
-
-    // Clean up user input messages
-    bot.deleteMessage(chatId, msg.message_id);
-    bot.deleteMessage(chatId, pageInputMessage.message_id);
-
-    if (!isNaN(requestedPage) && requestedPage > 0 && requestedPage <= totalPages) {
-      paginationState[userId].currentPage = requestedPage;
-      sendCachedResults(bot, callbackQuery.message.message_id, chatId, userId);
-    } else {
-      bot.sendMessage(chatId, `❌ Invalid page number. Please enter a number between 1 and ${totalPages}.`);
-    }
-  });
-
-  bot.answerCallbackQuery(callbackQuery.id);
-  return;
+  bot.deleteMessage(chatId, waitmsg.message_id);
 }
 
-});
-function sendCachedResults(bot, messageId, chatId, userId) {
-  const { schema, currentPage, resultsPerPage, totalPages } = paginationState[userId];
-  const videos = cachedVideos[schema] || [];
-
-  const start = (currentPage - 1) * resultsPerPage;
-  const pageResults = videos.slice(start, start + resultsPerPage);
-
-  const buttons = pageResults.map(file => [{
-    text: file.fileName,
-    url: `https://t.me/terabox_player_hj_bot?start=file_${file.uniqueId}`
-  }]);
-
-  const navButtons = [];
-
-  if (currentPage > 1) {
-    navButtons.push({ text: '⬅ Prev', callback_data: `page_prev_${schema}` });
-  }
-
-  navButtons.push({ text: `${currentPage}/${totalPages}`, callback_data: 'page_info' });
-
-  if (currentPage < totalPages) {
-    navButtons.push({ text: 'Next ➡', callback_data: `page_next_${schema}` });
-  }
-
-  // ✅ Add "Go to Page" button
-  navButtons.push({ text: '🔢 Go to Page', callback_data: `page_goto_${schema}` });
-
-  if (navButtons.length) buttons.push(navButtons);
-
-  bot.editMessageText(`Results for *${schema}* category:\nPage ${currentPage} of ${totalPages}`, {
-    chat_id: chatId,
-    message_id: messageId,
-    parse_mode: 'Markdown',
-    reply_markup: {
-      inline_keyboard: buttons,
-    }
-  });
-}
 
 
 
