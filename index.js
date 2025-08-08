@@ -1062,7 +1062,7 @@ bot.on('message', async (msg) => {
   if (typeof caption === 'string' && caption.startsWith('/')) return;
 
   // In private chat, check channel membership
-  if (isPrivate) {
+  if (isPrivate || isGroup) {
     const isMember = await checkChannelMembership(chatId, UpdateChannelId);
     if (!isMember) return sendJoinChannelMessage(chatId);
   }
@@ -1098,7 +1098,7 @@ bot.on('message', async (msg) => {
       } else {
         console.log('Group chat: user not authorized. Ignoring.');
         // Optional: send message or just ignore
-        return;
+        return handleverification(chatId, userId);
       }
     }
 
