@@ -1509,10 +1509,6 @@ bot.onText(/\/stats/, async (msg) => {
       { $group: { _id: null, totalWatchLinks: { $sum: "$watchLinksCount" } } }
     ]);
 
-    const tviral = await Viral.countDocuments();
-    const tparody = await Parody.countDocuments();
-    const twebs = await Webs.countDocuments();
-    const tfvideo = await Fvideo.countDocuments();
 
    const statsMessage = `
       🌟 <b>✨ Bot Usage Statistics ✨</b> 🌟
@@ -1523,10 +1519,6 @@ bot.onText(/\/stats/, async (msg) => {
       <b>🚫 Blocked Users:</b> <i>${blockedUsers}</i>
 
       <b>🔗 Total Watch Links Generated:</b> <i>${totalWatchLinks[0]?.totalWatchLinks || 0}</i>
-      <b>📈 Total Viral:</b> <i>${tviral}</i>
-      <b>🎭 Total Parody:</b> <i>${tparody}</i>
-      <b>🌐 Total WebS:</b> <i>${twebs}</i>
-      <b>🎥 Total FVideo:</b> <i>${tfvideo}</i>
     `;
 
     bot.sendMessage(chatId, statsMessage, { parse_mode: 'HTML' });
