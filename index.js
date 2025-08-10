@@ -1047,6 +1047,7 @@ function sendJoinChannelMessage(chatId) {
 bot.on('message', async (msg) => {
   const chatId = msg.chat.id;
   const caption = msg.text;
+  const userId = msg.from.id;
 
   // Ensure message has sender info
   if (!msg.from || !msg.from.id) {
@@ -1063,9 +1064,10 @@ bot.on('message', async (msg) => {
 
   // In private chat, check channel membership
   if (isPrivate || isGroup) {
-    const isMember = await checkChannelMembership(chatId, UpdateChannelId);
-    if (!isMember) return sendJoinChannelMessage(chatId);
-  }
+  const isMember = await checkChannelMembership(userId, UpdateChannelId);
+  if (!isMember) return sendJoinChannelMessage(chatId);
+}
+
 
   try {
     const user = await User.findOne({ userId });
