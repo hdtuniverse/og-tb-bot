@@ -1054,8 +1054,6 @@ bot.on('message', async (msg) => {
     console.warn('Message does not contain sender info. Ignoring.');
     return;
   }
-
-  const userId = msg.from.id;
   const isGroup = msg.chat.type === 'group' || msg.chat.type === 'supergroup';
   const isPrivate = msg.chat.type === 'private';
 
