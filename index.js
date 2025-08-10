@@ -1,4 +1,4 @@
-const TelegramBot = require('node-telegram-bot-api');
+ const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -71,7 +71,7 @@ const PP_USERS = mongoose.model('PPUser', ppuserSchema);
 
 // Replace with your own Telegram bot token
 const app = express();
-const token = '7513355237:AAEjvb6gSodWxEKjL4ftbav1zDE7MzHs3yU';
+// const token = '7513355237:AAEjvb6gSodWxEKjL4ftbav1zDE7MzHs3yU';
 const ownerId = 1461656174;
 const OWNER_ID = 1461656174;
 const channelId = '-1002044705664';
@@ -79,7 +79,7 @@ const UpdateChannelId = '@Ogprimeee';
 const UpdateChannelLink = 'https://t.me/Ogprimeee';
 const GroupLink = 'https://t.me/hivajoymovie';
 // Create a bot instance
-const bot = new TelegramBot(token, { polling: true });
+// const bot = new TelegramBot(token, { polling: true });
 const isOwner = (userId) => {
   return userId === OWNER_ID;
 };
