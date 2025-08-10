@@ -71,7 +71,7 @@ const PP_USERS = mongoose.model('PPUser', ppuserSchema);
 
 // Replace with your own Telegram bot token
 const app = express();
-// const token = '7513355237:AAEjvb6gSodWxEKjL4ftbav1zDE7MzHs3yU';
+const token = '7513355237:AAEjvb6gSodWxEKjL4ftbav1zDE7MzHs3yU';
 const ownerId = 1461656174;
 const OWNER_ID = 1461656174;
 const channelId = '-1002044705664';
@@ -79,7 +79,7 @@ const UpdateChannelId = '@Ogprimeee';
 const UpdateChannelLink = 'https://t.me/Ogprimeee';
 const GroupLink = 'https://t.me/hivajoymovie';
 // Create a bot instance
-// const bot = new TelegramBot(token, { polling: true });
+const bot = new TelegramBot(token, { polling: true });
 const isOwner = (userId) => {
   return userId === OWNER_ID;
 };
@@ -1278,31 +1278,32 @@ async function handleCaption(msg, chatId, caption, isPuser) {
           const hivajoysetup = `https://hivajoy-terabox.blogspot.com/?streamlink=${fastStreamUrl}`;
           const webwatch = `https://og-terabox-player.onrender.com/watch?streamlink=${fastStreamUrl}`;
 
-          await bot.sendPhoto(
-            chatId,
-            imageUrl,
-            {
-              caption: `<b>Watch On Web</b>: <a href="${webwatch}">WATCH NOW</a> \n\nYour Watch Link is Ready.`,
-              parse_mode: 'HTML',
-              reply_to_message_id: msg.message_id,
-              reply_markup: {
-                inline_keyboard: [
-                  [
-                    {
-                      text: '⚡ 1.Watch Now',
-                      web_app: { url: hivajoysetup },
-                    },
-                  ],
-                  [
-                    {
-                      text: '⚡ 2.Web Watch',
-                      url: webwatch,
-                    },
-                  ]
-                ],
-              },
-            }
-          );
+await bot.sendPhoto(
+  chatId,
+  imageUrl,
+  {
+    caption: `Hey ${msg.from.first_name}${msg.from.last_name ? ' ' + msg.from.last_name : ''} Here is your Terabox Streaming Link\n\n<b>Watch On Web</b>: <a href="${webwatch}">WATCH NOW</a>`,
+    parse_mode: 'HTML',
+    reply_to_message_id: msg.message_id,
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: '⚡ 1.Watch Now',
+            web_app: { url: hivajoysetup },
+          },
+        ],
+        [
+          {
+            text: '⚡ 2.Web Watch',
+            url: webwatch,
+          },
+        ]
+      ],
+    },
+  }
+);
+
 
           await bot.deleteMessage(chatId, generatingMessage.message_id);
         } catch (error) {
