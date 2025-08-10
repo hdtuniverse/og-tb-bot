@@ -1282,7 +1282,7 @@ await bot.sendPhoto(
   chatId,
   imageUrl,
   {
-    caption: `Hey ${msg.from.first_name}${msg.from.last_name ? ' ' + msg.from.last_name : ''} Here is your Terabox Streaming Link\n\n<b>Watch On Web</b>: <a href="${webwatch}">WATCH NOW</a>`,
+    caption: `Hey <a href="tg://settings">${msg.from.first_name}${msg.from.last_name ? ' ' + msg.from.last_name : ''}</a>\nHere is your Terabox Streaming Link\n\n<b>Watch On Web</b>: <a href="${webwatch}">WATCH NOW</a>`,
     parse_mode: 'HTML',
     reply_to_message_id: msg.message_id,
     reply_markup: {
@@ -1402,7 +1402,7 @@ async function handleCaption2(msg, chatId, caption, isPuser) {
             chatId,
             imageUrl,
             {
-              caption: `<b>Watch On Web</b>: <a href="${webwatch}">WATCH NOW</a> \n\nYour Watch Link is Ready.`,
+              caption:  `Hey <a href="tg://settings">${msg.from.first_name}${msg.from.last_name ? ' ' + msg.from.last_name : ''}</a> Here is your Terabox Streaming Link\n\n<b>Watch On Web</b>: <a href="${webwatch}">WATCH NOW</a>`,
               parse_mode: 'HTML',
               reply_to_message_id: msg.message_id,
               reply_markup: {
