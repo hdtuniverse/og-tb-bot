@@ -1,4 +1,4 @@
- const TelegramBot = require('node-telegram-bot-api');
+const TelegramBot = require('node-telegram-bot-api');
 const mongoose = require('mongoose');
 const crypto = require('crypto');
 const fs = require('fs');
@@ -1031,11 +1031,12 @@ async function checkChannelMembership(userId, UpdateChannelId) {
 
 
 
-function sendJoinChannelMessage(chatId) {
-  bot.sendMessage(chatId, `✨ Fɪʀsᴛ Jᴏɪɴ pᴜᴘᴅᴀᴛᴇs Cʜᴀɴɴᴇʟ/Group @Ogprimeee, To use this bot.`, {
+function sendJoinChannelMessage(chatId, msg) {
+ 
+  bot.sendMessage(chatId, `<a href="tg://setting">Hey ${msg.from.first_name} ${msg.from.last_name}</a>\n\n✨ Fɪʀsᴛ Jᴏɪɴ pᴜᴘᴅᴀᴛᴇs Cʜᴀɴɴᴇʟ/Group @Ogprimeee, To use this bot.`, {
     reply_markup: {
       inline_keyboard: [
-        [{ text: '👉 Jᴏɪɴ Nᴏᴡ', url: `${UpdateChannelLink}` }]
+        [{ text: 'GET STREAMING LINK', url: `${UpdateChannelLink}` }]
       ]
     }
 });
@@ -1063,7 +1064,7 @@ bot.on('message', async (msg) => {
   // In private chat, check channel membership
   if (isPrivate || isGroup) {
   const isMember = await checkChannelMembership(userId, UpdateChannelId);
-  if (!isMember) return sendJoinChannelMessage(chatId);
+  if (!isMember) return sendJoinChannelMessage(chatId, msg);
 }
 
 
