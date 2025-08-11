@@ -1033,7 +1033,8 @@ async function checkChannelMembership(userId, UpdateChannelId) {
 
 function sendJoinChannelMessage(chatId, msg) {
  
-  bot.sendMessage(chatId, `<a href="tg://setting">Hey ${msg.from.first_name} ${msg.from.last_name}</a>\n\n✨ Fɪʀsᴛ Jᴏɪɴ pᴜᴘᴅᴀᴛᴇs Cʜᴀɴɴᴇʟ/Group @Ogprimeee, To use this bot.`, {
+  bot.sendMessage(chatId, `Hey <a href="tg://settings">${msg.from.first_name}${msg.from.last_name ? ' ' + msg.from.last_name : ''}</a>\n\n✨ Fɪʀsᴛ Jᴏɪɴ pᴜᴘᴅᴀᴛᴇs Cʜᴀɴɴᴇʟ/Group @Ogprimeee, To use this bot.`, {
+    parse_mode: 'HTML',
     reply_markup: {
       inline_keyboard: [
         [{ text: 'GET STREAMING LINK', url: `${UpdateChannelLink}` }]
