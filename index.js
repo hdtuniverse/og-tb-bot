@@ -13,7 +13,7 @@ const axios = require('axios').create({
 
 
 // MongoDB connection setup
-const mongoUri = "mongodb+srv://shivamnox1:lTIaIaJdb40irAGP@cluster0.ee6as6k.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
+// const mongoUri = "mongodb+srv://shivamnox1:lTIaIaJdb40irAGP@cluster0.ee6as6k.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
 mongoose.connect(mongoUri, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(() => console.log("Connected to MongoDB"))
   .catch(err => console.error("MongoDB connection error:", err));
@@ -71,7 +71,7 @@ const PP_USERS = mongoose.model('PPUser', ppuserSchema);
 
 // Replace with your own Telegram bot token
 const app = express();
-const token = '7513355237:AAEjvb6gSodWxEKjL4ftbav1zDE7MzHs3yU';
+// const token = '7513355237:AAEjvb6gSodWxEKjL4ftbav1zDE7MzHs3yU';
 const ownerId = 1461656174;
 const OWNER_ID = 1461656174;
 const channelId = '-1002044705664';
@@ -79,7 +79,7 @@ const UpdateChannelId = '@Ogprimeee';
 const UpdateChannelLink = 'https://t.me/Ogprimeee';
 const GroupLink = 'https://t.me/hivajoymovie';
 // Create a bot instance
-const bot = new TelegramBot(token, { polling: true });
+// const bot = new TelegramBot(token, { polling: true });
 const isOwner = (userId) => {
   return userId === OWNER_ID;
 };
